@@ -1,103 +1,46 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-require('dotenv').config();
+// Main Express server for HealthSync – Smart Healthcare Management System
+// Uses Prisma + MySQL for persistence and exposes a REST API consumed by the React frontend.
+
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+
+import authRoutes from './routes/authRoutes.js';
+import patientRoutes from './routes/patientRoutes.js';
+import doctorRoutes from './routes/doctorRoutes.js';
+import appointmentRoutes from './routes/appointmentRoutes.js';
+import prisma from './config/prismaClient.js';
+import errorHandler from './middleware/errorHandler.js';
+
+dotenv.config();
 
 const app = express();
 
-// Middleware
+// Global middleware
 app.use(cors());
 app.use(express.json());
 
-// Test route
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'Backend connected successfully!' });
-});
-
-// User Schema
-const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  role: { type: String, enum: ['patient', 'doctor', 'admin'], default: 'patient' }
-}, { timestamps: true });
-
-const User = mongoose.model('User', userSchema);
-
-// Routes
-app.post('/api/auth/signup', async (req, res) => {
+// Health check
+app.get('/api/health', async (req, res) => {
   try {
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(500).json({ message: 'Database not connected. Please configure MongoDB Atlas.' });
-    }
-
-    const { name, email, password, role } = req.body;
-    
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 12);
-    const user = new User({ name, email, password: hashedPassword, role });
-    await user.save();
-
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '24h' });
-    res.status(201).json({ token, user: { id: user._id, name, email, role } });
-  } catch (error) {
-    console.error('Signup error:', error);
-    res.status(500).json({ message: 'Server error: ' + error.message });
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: 'ok', database: 'connected' });
+  } catch (err) {
+    res.status(500).json({ status: 'error', database: 'disconnected', message: err.message });
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
-  try {
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(500).json({ message: 'Database not connected. Please configure MongoDB Atlas.' });
-    }
+// API routes
+app.use('/api/auth', authRoutes);
+app.use('/api/patients', patientRoutes);
+app.use('/api/doctors', doctorRoutes);
+app.use('/api/appointments', appointmentRoutes);
 
-    const { email, password } = req.body;
-    
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
+// Centralized error handler
+app.use(errorHandler);
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '24h' });
-    res.json({ token, user: { id: user._id, name: user.name, email, role: user.role } });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error: ' + error.message });
-  }
-});
-
-// Connect to MongoDB and start server
 const PORT = process.env.PORT || 5001;
 
-// Start server even without MongoDB for testing
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Test the connection: http://localhost:${PORT}/api/test`);
+  console.log(`HealthSync API listening on port ${PORT}`);
 });
-
-// Connect to MongoDB if URI is provided
-if (process.env.MONGODB_URI && !process.env.MONGODB_URI.includes('<username>')) {
-  mongoose.connect(process.env.MONGODB_URI)
-    .then(() => {
-      console.log('Connected to MongoDB Atlas');
-    })
-    .catch(err => {
-      console.error('MongoDB connection error:', err.message);
-      console.log('Server running without database connection');
-    });
-} else {
-  console.log('MongoDB URI not configured. Update .env file to connect to database.');
-  console.log('Server running without database connection');
-}

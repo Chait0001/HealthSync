@@ -1,74 +1,86 @@
 # HealthSync - Smart Healthcare Management System
 
-A minimal healthcare management system with authentication using React.js, Node.js, Express.js, and MongoDB Atlas.
+Full-stack **HealthSync** application:
 
-## 🚀 Live Demo
-- **Frontend**: [Deploy to Vercel](https://vercel.com)
-- **Backend**: [Deploy to Render](https://render.com)
+- **Frontend**: React, React Router, Axios
+- **Backend**: Node.js, Express, Prisma (MySQL)
+- **Auth**: JWT with role-based access (`ADMIN`, `DOCTOR`, `PATIENT`)
 
 ## ✨ Features
-- 🏠 Homepage with system overview
-- 👥 User registration (Patient, Doctor, Admin roles)
-- 🔐 User authentication with JWT
-- 📊 Protected dashboard
-- 🗄️ MongoDB Atlas integration
-- 📱 Responsive design
+- 🏠 Home, Login, Signup, Dashboard, Profile pages
+- 👥 User registration & login with secure password hashing
+- 🔐 JWT authentication and protected routes
+- 🏥 CRUD for Patients, Doctors, Appointments
+- 🔎 Search, sorting, filtering, and pagination on all list views
 
-## Setup Instructions
+## Backend Setup (MySQL + Prisma)
 
-### 1. MongoDB Atlas Setup
-1. Create account at [MongoDB Atlas](https://www.mongodb.com/atlas)
-2. Create a new cluster
-3. Get connection string and update `.env` file
-
-### 2. Backend Setup
 ```bash
-# Navigate to backend directory
 cd backend
-
-# Install backend dependencies
 npm install
+```
 
-# Update .env file with your MongoDB Atlas credentials
-# Replace <username>, <password> in MONGODB_URI
-# Set a secure JWT_SECRET
+Create a `.env` in `backend`:
 
-# Start backend server
+```bash
+PORT=5001
+DATABASE_URL="mysql://USER:PASSWORD@HOST:3306/healthsync"
+JWT_SECRET="super-secure-jwt-secret-change-me"
+```
+
+Then generate the Prisma client and run migrations:
+
+```bash
+npx prisma generate
+npx prisma migrate dev --name init
 npm run dev
 ```
 
-### 3. Frontend Setup
+The Prisma schema (tables: `User`, `Patient`, `Doctor`, `Appointment`) is defined in `backend/prisma/schema.prisma`.
+
+## Frontend Setup
+
 ```bash
-# Navigate to frontend directory
 cd frontend
-
-# Install frontend dependencies
 npm install
+```
 
-# Start React development server
+Create a `.env` in `frontend`:
+
+```bash
+REACT_APP_API_BASE_URL="http://localhost:5001/api"
+```
+
+Start the React dev server:
+
+```bash
 npm start
 ```
 
-## Environment Variables
-Create `.env` file in backend directory:
-```
-PORT=5000
-MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/healthsync?retryWrites=true&w=majority
-JWT_SECRET=your_jwt_secret_key_here
-NODE_ENV=development
-```
+## API Overview
 
-## API Endpoints
-- `POST /api/auth/signup` - Register new user
-- `POST /api/auth/login` - Authenticate user
+- `POST /api/auth/signup` – Register user (role: `ADMIN`, `DOCTOR`, or `PATIENT`)
+- `POST /api/auth/login` – Login, returns `{ token, user }`
+- `GET /api/patients` – List patients with `search`, `sortBy`, `order`, `page`, `limit`, `doctor`
+- `GET /api/doctors` – List doctors with `search`, `department`, `sortBy`, `order`, `page`, `limit`
+- `GET /api/appointments` – List appointments with `search`, `status`, `doctor`, `patient`, `date/dateFrom/dateTo`, `sortBy`, `order`, `page`, `limit`
+
+List responses use the shape:
+
+```json
+{
+  "data": [/* items */],
+  "totalPages": 5,
+  "currentPage": 1,
+  "totalItems": 100
+}
+```
 
 ## Deployment
-- Frontend: Deploy to Vercel
-- Backend: Deploy to Render
-- Database: MongoDB Atlas (already cloud-hosted)
 
-## Tech Stack
-- **Frontend**: React.js, React Router, Axios
-- **Backend**: Node.js, Express.js
-- **Database**: MongoDB Atlas
-- **Authentication**: JWT (JSON Web Token)
+- **Backend (Render)**:
+  - Build command: `npm install && npx prisma generate && npx prisma migrate deploy`
+  - Start command: `npm start`
+  - Environment: `DATABASE_URL`, `JWT_SECRET`, `PORT`
+- **Frontend (Vercel)**:
+  - Set `REACT_APP_API_BASE_URL` to your Render backend URL (e.g. `https://your-api.onrender.com/api`)
